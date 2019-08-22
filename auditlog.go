@@ -1,6 +1,7 @@
 package disgord
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/andersfylling/disgord/constant"
@@ -328,11 +329,12 @@ func auditLogFactory() interface{} {
 //  Reviewed                 2018-06-05
 //  Comment                  -
 //  Note                     Check the last entry in the cacheLink, to avoid fetching data we already got
-func (c *Client) GetGuildAuditLogs(guildID Snowflake, flags ...Flag) (builder *guildAuditLogsBuilder) {
+func (c *Client) GetGuildAuditLogs(ctx context.Context, guildID Snowflake, flags ...Flag) (builder *guildAuditLogsBuilder) {
 	builder = &guildAuditLogsBuilder{}
 	builder.r.itemFactory = auditLogFactory
 	builder.r.flags = flags
 	builder.r.IgnoreCache().setup(c.cache, c.req, &httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodGet,
 		Ratelimiter: ratelimit.GuildAuditLogs(guildID),
 		Endpoint:    endpoint.GuildAuditLogs(guildID),

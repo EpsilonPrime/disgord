@@ -1,6 +1,7 @@
 package disgord
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -118,7 +119,7 @@ func (e *Emoji) CopyOverTo(other interface{}) (err error) {
 //func (e *Emoji) saveToDiscord(s Session) (err error) {
 //	session.Emoji
 //}
-func (e *Emoji) deleteFromDiscord(s Session, flags ...Flag) (err error) {
+func (e *Emoji) deleteFromDiscord(ctx context.Context, s Session, flags ...Flag) (err error) {
 	if e.guildID.IsZero() {
 		err = errors.New("missing guild ID, call Emoji.LinkToGuild")
 		return
@@ -128,7 +129,7 @@ func (e *Emoji) deleteFromDiscord(s Session, flags ...Flag) (err error) {
 		return
 	}
 
-	return s.DeleteGuildEmoji(e.guildID, e.ID, flags...)
+	return s.DeleteGuildEmoji(ctx, e.guildID, e.ID, flags...)
 }
 
 //func (e *Emoji) createGuildEmoji(session Session) (err error) {
@@ -189,8 +190,9 @@ func cacheEmoji_SetAll(cache Cacher, guildID Snowflake, emojis []*Emoji) error {
 //  Discord documentation   https://discordapp.com/developers/docs/resources/emoji#get-guild-emoji
 //  Reviewed                2019-02-20
 //  Comment                 -
-func (c *Client) GetGuildEmoji(guildID, emojiID Snowflake, flags ...Flag) (*Emoji, error) {
+func (c *Client) GetGuildEmoji(ctx context.Context, guildID, emojiID Snowflake, flags ...Flag) (*Emoji, error) {
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Ratelimiter: ratelimit.GuildEmojis(guildID),
 		Endpoint:    endpoint.GuildEmoji(guildID, emojiID),
 	}, flags)
@@ -213,8 +215,9 @@ func (c *Client) GetGuildEmoji(guildID, emojiID Snowflake, flags ...Flag) (*Emoj
 //  Discord documentation   https://discordapp.com/developers/docs/resources/emoji#list-guild-emojis
 //  Reviewed                2018-06-10
 //  Comment                 -
-func (c *Client) GetGuildEmojis(guildID Snowflake, flags ...Flag) (emojis []*Emoji, err error) {
+func (c *Client) GetGuildEmojis(ctx context.Context, guildID Snowflake, flags ...Flag) (emojis []*Emoji, err error) {
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Ratelimiter: ratelimit.GuildEmojis(guildID),
 		Endpoint:    endpoint.GuildEmojis(guildID),
 	}, flags)
@@ -265,7 +268,7 @@ type CreateGuildEmojiParams struct {
 //  Comment                 Emojis and animated emojis have a maximum file size of 256kb. Attempting to upload
 //                          an emoji larger than this limit will fail and return 400 Bad Request and an
 //                          error message, but not a JSON status code.
-func (c *Client) CreateGuildEmoji(guildID Snowflake, params *CreateGuildEmojiParams, flags ...Flag) (emoji *Emoji, err error) {
+func (c *Client) CreateGuildEmoji(ctx context.Context, guildID Snowflake, params *CreateGuildEmojiParams, flags ...Flag) (emoji *Emoji, err error) {
 	if guildID.IsZero() {
 		return nil, errors.New("guildID must be set, was " + guildID.String())
 	}
@@ -281,6 +284,7 @@ func (c *Client) CreateGuildEmoji(guildID Snowflake, params *CreateGuildEmojiPar
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodPost,
 		Ratelimiter: ratelimit.GuildEmojis(guildID),
 		Endpoint:    endpoint.GuildEmojis(guildID),
@@ -304,7 +308,7 @@ func (c *Client) CreateGuildEmoji(guildID Snowflake, params *CreateGuildEmojiPar
 //  Discord documentation   https://discordapp.com/developers/docs/resources/emoji#modify-guild-emoji
 //  Reviewed                2019-02-20
 //  Comment                 -
-func (c *Client) UpdateGuildEmoji(guildID, emojiID Snowflake, flags ...Flag) (builder *updateGuildEmojiBuilder) {
+func (c *Client) UpdateGuildEmoji(ctx context.Context, guildID, emojiID Snowflake, flags ...Flag) (builder *updateGuildEmojiBuilder) {
 	//if !validEmojiName(params.Name) {
 	//	err = errors.New("emoji name contains illegal characters. Did not send request")
 	//	return
@@ -316,6 +320,7 @@ func (c *Client) UpdateGuildEmoji(guildID, emojiID Snowflake, flags ...Flag) (bu
 	builder.r.flags = flags
 	builder.r.cacheRegistry = GuildEmojiCache
 	builder.r.setup(c.cache, c.req, &httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodPatch,
 		Ratelimiter: ratelimit.GuildEmojis(guildID),
 		Endpoint:    endpoint.GuildEmoji(guildID, emojiID),
@@ -333,8 +338,9 @@ func (c *Client) UpdateGuildEmoji(guildID, emojiID Snowflake, flags ...Flag) (bu
 //  Discord documentation   https://discordapp.com/developers/docs/resources/emoji#delete-guild-emoji
 //  Reviewed                2018-06-10
 //  Comment                 -
-func (c *Client) DeleteGuildEmoji(guildID, emojiID Snowflake, flags ...Flag) (err error) {
+func (c *Client) DeleteGuildEmoji(ctx context.Context, guildID, emojiID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodDelete,
 		Ratelimiter: ratelimit.GuildEmojis(guildID),
 		Endpoint:    endpoint.GuildEmoji(guildID, emojiID),

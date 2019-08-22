@@ -1,6 +1,8 @@
 package disgord
 
 import (
+	"context"
+
 	"github.com/andersfylling/disgord/constant"
 	"github.com/andersfylling/disgord/endpoint"
 	"github.com/andersfylling/disgord/httd"
@@ -172,8 +174,9 @@ func (v *VoiceRegion) CopyOverTo(other interface{}) (err error) {
 //  Discord documentation   https://discordapp.com/developers/docs/resources/voice#list-voice-regions
 //  Reviewed                2018-08-21
 //  Comment                 -
-func (c *Client) GetVoiceRegions(flags ...Flag) (regions []*VoiceRegion, err error) {
+func (c *Client) GetVoiceRegions(ctx context.Context, flags ...Flag) (regions []*VoiceRegion, err error) {
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Ratelimiter: ratelimit.VoiceRegions(),
 		Endpoint:    endpoint.VoiceRegions(),
 	}, flags)

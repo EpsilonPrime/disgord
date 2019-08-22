@@ -1,6 +1,7 @@
 package disgord
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -167,7 +168,7 @@ func (c *Channel) Compare(other *Channel) bool {
 	return (c == nil && other == nil) || (other != nil && c.ID == other.ID)
 }
 
-func (c *Channel) deleteFromDiscord(s Session, flags ...Flag) (err error) {
+func (c *Channel) deleteFromDiscord(ctx context.Context, s Session, flags ...Flag) (err error) {
 	var id Snowflake
 	if constant.LockedMethods {
 		c.RWMutex.RLock()
@@ -182,7 +183,7 @@ func (c *Channel) deleteFromDiscord(s Session, flags ...Flag) (err error) {
 		return
 	}
 	var deleted *Channel
-	if deleted, err = s.DeleteChannel(id, flags...); err != nil {
+	if deleted, err = s.DeleteChannel(ctx, id, flags...); err != nil {
 		return
 	}
 
@@ -341,12 +342,13 @@ func ratelimitChannelWebhooks(id Snowflake) string {
 //  Discord documentation   https://discordapp.com/developers/docs/resources/channel#get-channel
 //  Reviewed                2018-06-07
 //  Comment                 -
-func (c *Client) GetChannel(channelID Snowflake, flags ...Flag) (ret *Channel, err error) {
+func (c *Client) GetChannel(ctx context.Context, channelID Snowflake, flags ...Flag) (ret *Channel, err error) {
 	if channelID.IsZero() {
 		return nil, errors.New("not a valid snowflake")
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Ratelimiter: ratelimitChannel(channelID),
 		Endpoint:    endpoint.Channel(channelID),
 	}, flags)
@@ -370,13 +372,14 @@ func (c *Client) GetChannel(channelID Snowflake, flags ...Flag) (ret *Channel, e
 //  Discord documentation   https://discordapp.com/developers/docs/resources/channel#modify-channel
 //  Reviewed                2018-06-07
 //  Comment                 andersfylling: only implemented the patch method, as its parameters are optional.
-func (c *Client) UpdateChannel(channelID Snowflake, flags ...Flag) (builder *updateChannelBuilder) {
+func (c *Client) UpdateChannel(ctx context.Context, channelID Snowflake, flags ...Flag) (builder *updateChannelBuilder) {
 	builder = &updateChannelBuilder{}
 	builder.r.itemFactory = func() interface{} {
 		return c.pool.channel.Get()
 	}
 	builder.r.flags = flags
 	builder.r.setup(c.cache, c.req, &httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodPatch,
 		Ratelimiter: ratelimitChannel(channelID),
 		Endpoint:    endpoint.Channel(channelID),
@@ -401,13 +404,14 @@ func (c *Client) UpdateChannel(channelID Snowflake, flags ...Flag) (builder *upd
 //                          is impossible to undo this action when performed on a guild channel. In
 //                          contrast, when used with a private message, it is possible to undo the
 //                          action by opening a private message with the recipient again.
-func (c *Client) DeleteChannel(channelID Snowflake, flags ...Flag) (channel *Channel, err error) {
+func (c *Client) DeleteChannel(ctx context.Context, channelID Snowflake, flags ...Flag) (channel *Channel, err error) {
 	if channelID.IsZero() {
 		err = errors.New("not a valid snowflake")
 		return
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodDelete,
 		Ratelimiter: ratelimitChannel(channelID),
 		Endpoint:    endpoint.Channel(channelID),
@@ -440,7 +444,7 @@ type UpdateChannelPermissionsParams struct {
 //  Discord documentation   https://discordapp.com/developers/docs/resources/channel#edit-channel-permissions
 //  Reviewed                2018-06-07
 //  Comment                 -
-func (c *Client) UpdateChannelPermissions(channelID, overwriteID Snowflake, params *UpdateChannelPermissionsParams, flags ...Flag) (err error) {
+func (c *Client) UpdateChannelPermissions(ctx context.Context, channelID, overwriteID Snowflake, params *UpdateChannelPermissionsParams, flags ...Flag) (err error) {
 	if channelID.IsZero() {
 		return errors.New("channelID must be set to target the correct channel")
 	}
@@ -449,6 +453,7 @@ func (c *Client) UpdateChannelPermissions(channelID, overwriteID Snowflake, para
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodPut,
 		Ratelimiter: ratelimitChannelPermissions(channelID),
 		Endpoint:    endpoint.ChannelPermission(channelID, overwriteID),
@@ -473,13 +478,14 @@ func (c *Client) UpdateChannelPermissions(channelID, overwriteID Snowflake, para
 //  Discord documentation   https://discordapp.com/developers/docs/resources/channel#get-channel-invites
 //  Reviewed                2018-06-07
 //  Comment                 -
-func (c *Client) GetChannelInvites(channelID Snowflake, flags ...Flag) (invites []*Invite, err error) {
+func (c *Client) GetChannelInvites(ctx context.Context, channelID Snowflake, flags ...Flag) (invites []*Invite, err error) {
 	if channelID.IsZero() {
 		err = errors.New("channelID must be set to target the correct channel")
 		return
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Ratelimiter: ratelimitChannelInvites(channelID),
 		Endpoint:    endpoint.ChannelInvites(channelID),
 	}, flags)
@@ -509,7 +515,7 @@ type CreateChannelInvitesParams struct {
 //  Discord documentation   https://discordapp.com/developers/docs/resources/channel#create-channel-invite
 //  Reviewed                2018-06-07
 //  Comment                 -
-func (c *Client) CreateChannelInvites(channelID Snowflake, params *CreateChannelInvitesParams, flags ...Flag) (ret *Invite, err error) {
+func (c *Client) CreateChannelInvites(ctx context.Context, channelID Snowflake, params *CreateChannelInvitesParams, flags ...Flag) (ret *Invite, err error) {
 	if channelID.IsZero() {
 		err = errors.New("channelID must be set to target the correct channel")
 		return nil, err
@@ -519,6 +525,7 @@ func (c *Client) CreateChannelInvites(channelID Snowflake, params *CreateChannel
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodPost,
 		Ratelimiter: ratelimitChannelInvites(channelID),
 		Endpoint:    endpoint.ChannelInvites(channelID),
@@ -541,7 +548,7 @@ func (c *Client) CreateChannelInvites(channelID Snowflake, params *CreateChannel
 //  Discord documentation   https://discordapp.com/developers/docs/resources/channel#delete-channel-permission
 //  Reviewed                2018-06-07
 //  Comment                 -
-func (c *Client) DeleteChannelPermission(channelID, overwriteID Snowflake, flags ...Flag) (err error) {
+func (c *Client) DeleteChannelPermission(ctx context.Context, channelID, overwriteID Snowflake, flags ...Flag) (err error) {
 	if channelID.IsZero() {
 		return errors.New("channelID must be set to target the correct channel")
 	}
@@ -550,6 +557,7 @@ func (c *Client) DeleteChannelPermission(channelID, overwriteID Snowflake, flags
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodDelete,
 		Ratelimiter: ratelimitChannelPermissions(channelID),
 		Endpoint:    endpoint.ChannelPermission(channelID, overwriteID),
@@ -593,7 +601,7 @@ func (g *GroupDMParticipant) FindErrors() error {
 //  Discord documentation   https://discordapp.com/developers/docs/resources/channel#group-dm-add-recipient
 //  Reviewed                2018-06-10
 //  Comment                 -
-func (c *Client) AddDMParticipant(channelID Snowflake, participant *GroupDMParticipant, flags ...Flag) error {
+func (c *Client) AddDMParticipant(ctx context.Context, channelID Snowflake, participant *GroupDMParticipant, flags ...Flag) error {
 	if channelID.IsZero() {
 		return errors.New("channelID must be set to target the correct channel")
 	}
@@ -605,6 +613,7 @@ func (c *Client) AddDMParticipant(channelID Snowflake, participant *GroupDMParti
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodPut,
 		Ratelimiter: ratelimitChannelRecipients(channelID),
 		Endpoint:    endpoint.ChannelRecipient(channelID, participant.UserID),
@@ -624,7 +633,7 @@ func (c *Client) AddDMParticipant(channelID Snowflake, participant *GroupDMParti
 //  Discord documentation   https://discordapp.com/developers/docs/resources/channel#group-dm-remove-recipient
 //  Reviewed                2018-06-10
 //  Comment                 -
-func (c *Client) KickParticipant(channelID, userID Snowflake, flags ...Flag) (err error) {
+func (c *Client) KickParticipant(ctx context.Context, channelID, userID Snowflake, flags ...Flag) (err error) {
 	if channelID.IsZero() {
 		return errors.New("channelID must be set to target the correct channel")
 	}
@@ -633,6 +642,7 @@ func (c *Client) KickParticipant(channelID, userID Snowflake, flags ...Flag) (er
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodDelete,
 		Ratelimiter: ratelimitChannelRecipients(channelID),
 		Endpoint:    endpoint.ChannelRecipient(channelID, userID),

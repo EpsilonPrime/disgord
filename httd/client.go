@@ -3,6 +3,7 @@ package httd
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -210,6 +211,7 @@ type Request struct {
 	Endpoint          string
 	Body              interface{} // will automatically marshal to JSON if the ContentType is httd.ContentTypeJSON
 	ContentType       string
+	Ctx               context.Context
 }
 
 func (c *Client) decodeResponseBody(resp *http.Response) (body []byte, err error) {
@@ -302,6 +304,7 @@ func (c *Client) Request(r *Request) (resp *http.Response, body []byte, err erro
 	if err != nil {
 		return nil, nil, err
 	}
+	req = req.WithContext(r.Ctx)
 	req.Header = c.reqHeader
 	req.Header.Set(ContentType, r.ContentType) // unique for each request
 

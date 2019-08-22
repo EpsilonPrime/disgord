@@ -1,6 +1,7 @@
 package disgord
 
 import (
+	"context"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -123,6 +124,7 @@ func TestGuildAuditLogs(t *testing.T) {
 		builder := &guildAuditLogsBuilder{}
 		builder.r.itemFactory = auditLogFactory
 		builder.r.IgnoreCache().setup(nil, client, &httd.Request{
+			Ctx:         context.Background(),
 			Method:      http.MethodGet,
 			Ratelimiter: ratelimit.GuildAuditLogs(7),
 			Endpoint:    endpoint.GuildAuditLogs(Snowflake(7)),
@@ -156,6 +158,7 @@ func TestGuildAuditLogs(t *testing.T) {
 		builder := &guildAuditLogsBuilder{}
 		builder.r.itemFactory = auditLogFactory
 		builder.r.IgnoreCache().setup(nil, client, &httd.Request{
+			Ctx:         context.Background(),
 			Method:      http.MethodGet,
 			Ratelimiter: ratelimit.GuildAuditLogs(7),
 			Endpoint:    endpoint.GuildAuditLogs(Snowflake(7)),
@@ -192,6 +195,7 @@ func TestGuildAuditLogs(t *testing.T) {
 
 		builder := &guildAuditLogsBuilder{}
 		builder.r.IgnoreCache().setup(nil, client, &httd.Request{
+			Ctx:         context.Background(),
 			Method:      http.MethodGet,
 			Ratelimiter: ratelimit.GuildAuditLogs(7),
 			Endpoint:    endpoint.GuildAuditLogs(Snowflake(7)),
@@ -218,6 +222,7 @@ func TestGuildAuditLogs(t *testing.T) {
 		builder := &guildAuditLogsBuilder{}
 		builder.r.itemFactory = auditLogFactory
 		builder.r.IgnoreCache().setup(nil, client, &httd.Request{
+			Ctx:         context.Background(),
 			Method:      http.MethodGet,
 			Ratelimiter: ratelimit.GuildAuditLogs(7),
 			Endpoint:    endpoint.GuildAuditLogs(Snowflake(7)),

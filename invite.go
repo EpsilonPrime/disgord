@@ -1,6 +1,7 @@
 package disgord
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/andersfylling/disgord/constant"
@@ -41,12 +42,12 @@ var _ Copier = (*Invite)(nil)
 var _ DeepCopier = (*Invite)(nil)
 var _ discordDeleter = (*Invite)(nil)
 
-func (i *Invite) deleteFromDiscord(s Session, flags ...Flag) error {
+func (i *Invite) deleteFromDiscord(ctx context.Context, s Session, flags ...Flag) error {
 	if i.Code == "" {
 		return &ErrorEmptyValue{info: "can not delete invite without the code field populate"}
 	}
 
-	_, err := s.DeleteInvite(i.Code, flags...)
+	_, err := s.DeleteInvite(ctx, i.Code, flags...)
 	return err
 }
 
@@ -187,12 +188,13 @@ var _ URLQueryStringer = (*GetInviteParams)(nil)
 //  Reviewed                2018-06-10
 //  Comment                 -
 //  withMemberCount: whether or not the invite should contain the approximate number of members
-func (c *Client) GetInvite(inviteCode string, params URLQueryStringer, flags ...Flag) (invite *Invite, err error) {
+func (c *Client) GetInvite(ctx context.Context, inviteCode string, params URLQueryStringer, flags ...Flag) (invite *Invite, err error) {
 	if params == nil {
 		params = &GetInviteParams{}
 	}
 
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Ratelimiter: ratelimit.Invites(),
 		Endpoint:    endpoint.Invite(inviteCode) + params.URLQueryString(),
 	}, flags)
@@ -208,8 +210,9 @@ func (c *Client) GetInvite(inviteCode string, params URLQueryStringer, flags ...
 //  Discord documentation   https://discordapp.com/developers/docs/resources/invite#delete-invite
 //  Reviewed                2018-06-10
 //  Comment                 -
-func (c *Client) DeleteInvite(inviteCode string, flags ...Flag) (deleted *Invite, err error) {
+func (c *Client) DeleteInvite(ctx context.Context, inviteCode string, flags ...Flag) (deleted *Invite, err error) {
 	r := c.newRESTRequest(&httd.Request{
+		Ctx:         ctx,
 		Method:      http.MethodDelete,
 		Ratelimiter: ratelimit.Invites(),
 		Endpoint:    endpoint.Invite(inviteCode),
