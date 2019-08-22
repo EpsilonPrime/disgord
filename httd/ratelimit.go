@@ -11,6 +11,7 @@ import (
 // http rate limit identifiers
 const (
 	XRateLimitPrecision  = "X-RateLimit-Precision"
+	XRateLimitBucket     = "X-RateLimit-Bucket"
 	XRateLimitLimit      = "X-RateLimit-Limit"
 	XRateLimitRemaining  = "X-RateLimit-Remaining"
 	XRateLimitReset      = "X-RateLimit-Reset" // is converted from seconds to milliseconds!
@@ -19,7 +20,7 @@ const (
 	GlobalRateLimiterKey = ""
 )
 
-// RateLimiter is the interface for the ratelimit manager
+// RateLimiter is the interface for the rate limit manager
 type RateLimiter interface {
 	Bucket(key string) *Bucket
 	RateLimitTimeout(key string) int64

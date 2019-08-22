@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/andersfylling/disgord/httd/ratelimiter"
+
 	"github.com/andersfylling/disgord/logger"
 	"github.com/andersfylling/disgord/websocket"
 
@@ -327,7 +329,7 @@ func (c *Client) String() string {
 }
 
 // RateLimiter return the rate limiter object
-func (c *Client) RateLimiter() httd.RateLimiter {
+func (c *Client) RateLimiter() *ratelimiter.Manager {
 	return c.req.RateLimiter()
 }
 

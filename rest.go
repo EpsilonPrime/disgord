@@ -159,7 +159,7 @@ func (r *rest) stepDoRequest() (resp *http.Response, body []byte, err error) {
 		return
 	}
 
-	resp, body, err = r.c.req.Request(r.conf)
+	resp, body, err = r.c.req.Do(r.conf)
 	return
 }
 
@@ -339,7 +339,7 @@ func (b *RESTBuilder) execute() (v interface{}, err error) {
 
 	var resp *http.Response
 	var body []byte
-	resp, body, err = b.client.Request(b.config)
+	resp, body, err = b.client.Do(b.config)
 	if err != nil {
 		return nil, err
 	}
