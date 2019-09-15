@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/andersfylling/disgord/httd/ratelimiter"
+	"github.com/andersfylling/disgord/httd/ratelimit"
 )
 
 // defaults and string format's for Discord interaction
@@ -83,7 +83,7 @@ type Client struct {
 	reqHeader                    http.Header
 	httpClient                   *http.Client // TODO: decouple to allow better unit testing of REST requests
 	cancelRequestWhenRateLimited bool
-	rateLimitMngr                *ratelimiter.Manager
+	rateLimitMngr                *ratelimit.Manager
 }
 
 // Get handles Discord get requests
@@ -171,7 +171,7 @@ func NewClient(conf *Config) (*Client, error) {
 		url:           BaseURL + "/v" + strconv.Itoa(conf.APIVersion),
 		reqHeader:     header,
 		httpClient:    conf.HTTPClient,
-		rateLimitMngr: ratelimiter.NewManager(),
+		rateLimitMngr: ratelimit.NewManager(),
 	}, nil
 }
 
@@ -204,9 +204,9 @@ type RateLimitAdjuster func(timeout time.Duration) time.Duration
 
 // Request is populated before executing a Discord request to correctly generate a http request
 type Request struct {
-	RateLimitGroup   ratelimiter.GroupID
+	RateLimitGroup   ratelimit.GroupID
 	MajorRateLimitID Snowflake
-	BucketKey        ratelimiter.LocalKey
+	BucketKey        ratelimit.LocalKey
 
 	Method            string // http.Method*
 	Ratelimiter       string
@@ -296,7 +296,7 @@ func (c *Client) Do(r *Request) (resp *http.Response, body []byte, err error) {
 	defer resp.Body.Close()
 	body, err = c.decodeResponseBody(resp)
 
-	resp.Header, err = ratelimiter.CorrectDiscordHeader(resp.StatusCode, resp.Header, body)
+	resp.Header, err = ratelimit.CorrectDiscordHeader(resp.StatusCode, resp.Header, body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -331,7 +331,7 @@ func (c *Client) Do(r *Request) (resp *http.Response, body []byte, err error) {
 }
 
 // RateLimiter get the rate limit manager
-func (c *Client) RateLimiter() *ratelimiter.Manager {
+func (c *Client) RateLimiter() *ratelimit.Manager {
 	return c.rateLimitMngr
 }
 
