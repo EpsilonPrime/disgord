@@ -77,6 +77,48 @@ func (e *ErrREST) Error() string {
 	return e.Msg
 }
 
+// NewClient ...
+func NewClient(conf *Config) (*Client, error) {
+	if !SupportsDiscordAPIVersion(conf.APIVersion) {
+		return nil, errors.New(fmt.Sprintf("Discord API version %d is not supported", conf.APIVersion))
+	}
+
+	if conf.BotToken == "" {
+		return nil, errors.New("no Discord Bot Token was provided")
+	}
+
+	// if no http client was provided, create a new one
+	if conf.HTTPClient == nil {
+		conf.HTTPClient = &http.Client{
+			Timeout: time.Second * 10,
+		}
+	}
+
+	// Clients using the HTTP API must provide a valid User Agent which specifies
+	// information about the client library and version in the following format:
+	//	User-Agent: DiscordBot ($url, $versionNumber)
+	if conf.UserAgentSourceURL == "" || conf.UserAgentVersion == "" {
+		return nil, errors.New("both a source(url) and a version must be present for sending requests to the Discord REST API")
+	}
+
+	// setup the required http request header fields
+	authorization := fmt.Sprintf(AuthorizationFormat, conf.BotToken)
+	userAgent := fmt.Sprintf(UserAgentFormat, conf.UserAgentSourceURL, conf.UserAgentVersion, conf.UserAgentExtra)
+	header := map[string][]string{
+		"X-RateLimit-Precision": {"millisecond"},
+		"Authorization":         {authorization},
+		"User-Agent":            {userAgent},
+		"Accept-Encoding":       {"gzip"},
+	}
+
+	return &Client{
+		url:           BaseURL + "/v" + strconv.Itoa(conf.APIVersion),
+		reqHeader:     header,
+		httpClient:    conf.HTTPClient,
+		rateLimitMngr: ratelimit.NewManager(),
+	}, nil
+}
+
 // Client is the httd client for handling Discord requests
 type Client struct {
 	url                          string // base url with API version
@@ -133,48 +175,6 @@ func SupportsDiscordAPIVersion(version int) bool {
 	return supported
 }
 
-// NewClient ...
-func NewClient(conf *Config) (*Client, error) {
-	if !SupportsDiscordAPIVersion(conf.APIVersion) {
-		return nil, errors.New(fmt.Sprintf("Discord API version %d is not supported", conf.APIVersion))
-	}
-
-	if conf.BotToken == "" {
-		return nil, errors.New("no Discord Bot Token was provided")
-	}
-
-	// if no http client was provided, create a new one
-	if conf.HTTPClient == nil {
-		conf.HTTPClient = &http.Client{
-			Timeout: time.Second * 10,
-		}
-	}
-
-	// Clients using the HTTP API must provide a valid User Agent which specifies
-	// information about the client library and version in the following format:
-	//	User-Agent: DiscordBot ($url, $versionNumber)
-	if conf.UserAgentSourceURL == "" || conf.UserAgentVersion == "" {
-		return nil, errors.New("both a source(url) and a version must be present for sending requests to the Discord REST API")
-	}
-
-	// setup the required http request header fields
-	authorization := fmt.Sprintf(AuthorizationFormat, conf.BotToken)
-	userAgent := fmt.Sprintf(UserAgentFormat, conf.UserAgentSourceURL, conf.UserAgentVersion, conf.UserAgentExtra)
-	header := map[string][]string{
-		XRateLimitPrecision: {"millisecond"},
-		"Authorization":     {authorization},
-		"User-Agent":        {userAgent},
-		"Accept-Encoding":   {"gzip"},
-	}
-
-	return &Client{
-		url:           BaseURL + "/v" + strconv.Itoa(conf.APIVersion),
-		reqHeader:     header,
-		httpClient:    conf.HTTPClient,
-		rateLimitMngr: ratelimit.NewManager(),
-	}, nil
-}
-
 // Config is the configuration options for the httd.Client structure. Essentially the behaviour of all requests
 // sent to Discord.
 type Config struct {
@@ -204,12 +204,11 @@ type RateLimitAdjuster func(timeout time.Duration) time.Duration
 
 // Request is populated before executing a Discord request to correctly generate a http request
 type Request struct {
-	RateLimitGroup   ratelimit.GroupID
-	MajorRateLimitID Snowflake
+	RateLimitGroup   ratelimit.GroupID // major type
+	RateLimitMajorID Snowflake
 	BucketKey        ratelimit.LocalKey
 
-	Method            string // http.Method*
-	Ratelimiter       string
+	Method            string            // http.Method*
 	RateLimitAdjuster RateLimitAdjuster // TODO: is this now redundant?
 	Endpoint          string
 	Body              interface{} // will automatically marshal to JSON if the ContentType is httd.ContentTypeJSON
@@ -246,7 +245,7 @@ func (c *Client) decodeResponseBody(resp *http.Response) (body []byte, err error
 }
 
 func (c *Client) Do(r *Request) (resp *http.Response, body []byte, err error) {
-	bucket, populated := c.rateLimitMngr.Bucket(r.RateLimitGroup, r.MajorRateLimitID, r.BucketKey)
+	bucket, populated := c.rateLimitMngr.Bucket(r.RateLimitGroup, r.RateLimitMajorID, r.BucketKey)
 
 	now := time.Now()
 	acceptableDelay := now.Add(200 * time.Millisecond).Sub(now)
@@ -301,10 +300,10 @@ func (c *Client) Do(r *Request) (resp *http.Response, body []byte, err error) {
 		return nil, nil, err
 	}
 
-	c.rateLimitMngr.UpdateBucket(r.RateLimitGroup, r.MajorRateLimitID, r.BucketKey, resp.Header)
+	c.rateLimitMngr.UpdateBucket(r.RateLimitGroup, r.RateLimitMajorID, r.BucketKey, resp.Header)
 
 	if !populated {
-		c.rateLimitMngr.Consolidate(r.RateLimitGroup, r.MajorRateLimitID, bucket)
+		c.rateLimitMngr.Consolidate(r.RateLimitGroup, r.RateLimitMajorID, bucket)
 	}
 
 	// check if request was successful

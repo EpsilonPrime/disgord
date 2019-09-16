@@ -6,7 +6,7 @@ import (
 	"github.com/andersfylling/disgord/constant"
 	"github.com/andersfylling/disgord/endpoint"
 	"github.com/andersfylling/disgord/httd"
-	"github.com/andersfylling/disgord/ratelimit"
+	"github.com/andersfylling/disgord/httd/ratelimit"
 )
 
 type AuditLogEvt uint
@@ -333,9 +333,12 @@ func (c *Client) GetGuildAuditLogs(guildID Snowflake, flags ...Flag) (builder *g
 	builder.r.itemFactory = auditLogFactory
 	builder.r.flags = flags
 	builder.r.IgnoreCache().setup(c.cache, c.req, &httd.Request{
-		Method:      http.MethodGet,
-		Ratelimiter: ratelimit.GuildAuditLogs(guildID),
-		Endpoint:    endpoint.GuildAuditLogs(guildID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "al",
+
+		Method:   http.MethodGet,
+		Endpoint: endpoint.GuildAuditLogs(guildID),
 	}, nil)
 
 	return builder

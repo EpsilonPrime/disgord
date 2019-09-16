@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/andersfylling/disgord/httd/ratelimit"
+
 	"github.com/andersfylling/disgord/constant"
 	"github.com/andersfylling/disgord/endpoint"
 	"github.com/andersfylling/disgord/httd"
@@ -408,8 +410,10 @@ func (c *Client) getMessages(channelID Snowflake, params URLQueryStringer, flags
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitChannelMessages(channelID),
-		Endpoint:    endpoint.ChannelMessages(channelID) + query,
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "messages",
+		Endpoint:         endpoint.ChannelMessages(channelID) + query,
 	}, flags)
 	r.factory = func() interface{} {
 		tmp := make([]*Message, 0)
@@ -542,8 +546,10 @@ func (c *Client) GetMessage(channelID, messageID Snowflake, flags ...Flag) (mess
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitChannelMessages(channelID),
-		Endpoint:    endpoint.ChannelMessage(channelID, messageID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "messages",
+		Endpoint:         endpoint.ChannelMessage(channelID, messageID),
 	}, flags)
 	r.pool = c.pool.message
 	r.factory = func() interface{} {
@@ -696,11 +702,13 @@ func (c *Client) CreateMessage(channelID Snowflake, params *CreateMessageParams,
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitChannelMessages(channelID),
-		Endpoint:    "/channels/" + channelID.String() + "/messages",
-		Body:        postBody,
-		ContentType: contentType,
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "messages",
+		Method:           http.MethodPost,
+		Endpoint:         "/channels/" + channelID.String() + "/messages",
+		Body:             postBody,
+		ContentType:      contentType,
 	}, flags)
 	r.pool = c.pool.message
 	r.factory = func() interface{} {
@@ -728,10 +736,12 @@ func (c *Client) UpdateMessage(chanID, msgID Snowflake, flags ...Flag) (builder 
 	builder.r.addPrereq(chanID.IsZero(), "channelID must be set to get channel messages")
 	builder.r.addPrereq(msgID.IsZero(), "msgID must be set to edit the message")
 	builder.r.setup(c.cache, c.req, &httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitChannelMessages(chanID),
-		Endpoint:    "/channels/" + chanID.String() + "/messages/" + msgID.String(),
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: chanID,
+		BucketKey:        "messages",
+		Method:           http.MethodPatch,
+		Endpoint:         "/channels/" + chanID.String() + "/messages/" + msgID.String(),
+		ContentType:      httd.ContentTypeJSON,
 	}, nil)
 
 	return builder
@@ -757,9 +767,11 @@ func (c *Client) DeleteMessage(channelID, msgID Snowflake, flags ...Flag) (err e
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitChannelMessagesDelete(channelID),
-		Endpoint:    endpoint.ChannelMessage(channelID, msgID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "messages-del",
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.ChannelMessage(channelID, msgID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -824,7 +836,7 @@ func (p *DeleteMessagesParams) AddMessage(msg *Message) (err error) {
 // will only be counted once.
 //  Method                  POST
 //  Endpoint                /channels/{channel.id}/messages/bulk-delete
-//  Rate limiter [MAJOR]    /channels/{channel.id}/messages [DELETE] TODO: is this limiter key incorrect?
+//  Rate limiter [MAJOR]    /channels/{channel.id}/messages [DELETE]
 //  Discord documentation   https://discordapp.com/developers/docs/resources/channel#delete-message
 //  Reviewed                2018-06-10
 //  Comment                 This endpoint will not delete messages older than 2 weeks, and will fail if any message
@@ -839,11 +851,13 @@ func (c *Client) DeleteMessages(chanID Snowflake, params *DeleteMessagesParams, 
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitChannelMessagesDelete(chanID),
-		Endpoint:    endpoint.ChannelMessagesBulkDelete(chanID),
-		ContentType: httd.ContentTypeJSON,
-		Body:        params,
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: chanID,
+		BucketKey:        "messages-del",
+		Method:           http.MethodPost,
+		Endpoint:         endpoint.ChannelMessagesBulkDelete(chanID),
+		ContentType:      httd.ContentTypeJSON,
+		Body:             params,
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -863,9 +877,11 @@ func (c *Client) DeleteMessages(chanID Snowflake, params *DeleteMessagesParams, 
 //  Comment                 -
 func (c *Client) TriggerTypingIndicator(channelID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitChannelTyping(channelID),
-		Endpoint:    endpoint.ChannelTyping(channelID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "typing",
+		Method:           http.MethodPost,
+		Endpoint:         endpoint.ChannelTyping(channelID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -882,8 +898,10 @@ func (c *Client) TriggerTypingIndicator(channelID Snowflake, flags ...Flag) (err
 //  Comment                 -
 func (c *Client) GetPinnedMessages(channelID Snowflake, flags ...Flag) (ret []*Message, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitChannelPins(channelID),
-		Endpoint:    endpoint.ChannelPins(channelID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "pins",
+		Endpoint:         endpoint.ChannelPins(channelID),
 	}, flags)
 	r.factory = func() interface{} {
 		tmp := make([]*Message, 0)
@@ -908,9 +926,11 @@ func (c *Client) PinMessage(message *Message, flags ...Flag) error {
 //  Comment                 -
 func (c *Client) PinMessageID(channelID, messageID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPut,
-		Ratelimiter: ratelimitChannelPins(channelID),
-		Endpoint:    endpoint.ChannelPin(channelID, messageID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "pins",
+		Method:           http.MethodPut,
+		Endpoint:         endpoint.ChannelPin(channelID, messageID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -940,9 +960,11 @@ func (c *Client) UnpinMessageID(channelID, messageID Snowflake, flags ...Flag) (
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitChannelPins(channelID),
-		Endpoint:    endpoint.ChannelPin(channelID, messageID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "pins",
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.ChannelPin(channelID, messageID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/andersfylling/disgord/httd/ratelimit"
+
 	"github.com/andersfylling/disgord/httd"
 	"github.com/andersfylling/disgord/websocket"
 )
@@ -436,8 +438,9 @@ type basicBuilder struct {
 func (c *Client) GetGateway(client httd.Getter) (gateway *websocket.Gateway, err error) {
 	var body []byte
 	_, body, err = client.Get(&httd.Request{
-		Ratelimiter: "/gateway",
-		Endpoint:    "/gateway",
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      "gateway",
+		Endpoint:       "/gateway",
 	})
 	if err != nil {
 		return
@@ -460,8 +463,9 @@ func (c *Client) GetGateway(client httd.Getter) (gateway *websocket.Gateway, err
 func (c *Client) GetGatewayBot() (gateway *websocket.GatewayBot, err error) {
 	var body []byte
 	_, body, err = c.req.Get(&httd.Request{
-		Ratelimiter: "/gateway/bot",
-		Endpoint:    "/gateway/bot",
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      "gateway-bot",
+		Endpoint:       "/gateway/bot",
 	})
 	if err != nil {
 		return

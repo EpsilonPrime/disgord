@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"sort"
 
+	"github.com/andersfylling/disgord/httd/ratelimit"
+
 	"github.com/andersfylling/disgord/constant"
 	"github.com/andersfylling/disgord/endpoint"
 	"github.com/andersfylling/disgord/httd"
@@ -168,11 +170,13 @@ type CreateGuildRoleParams struct {
 //  Comment                 All JSON params are optional.
 func (c *Client) CreateGuildRole(id Snowflake, params *CreateGuildRoleParams, flags ...Flag) (ret *Role, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitGuildRoles(id),
-		Endpoint:    endpoint.GuildRoles(id),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		BucketKey:        "roles",
+		Method:           http.MethodPost,
+		Endpoint:         endpoint.GuildRoles(id),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.CacheRegistry = GuildRoleCache
 	r.factory = func() interface{} {
@@ -201,10 +205,12 @@ func (c *Client) UpdateGuildRole(guildID, roleID Snowflake, flags ...Flag) (buil
 	}
 	builder.r.flags = flags
 	builder.r.IgnoreCache().setup(c.cache, c.req, &httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitGuildRoles(guildID),
-		Endpoint:    endpoint.GuildRole(guildID, roleID),
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "roles",
+		Method:           http.MethodPatch,
+		Endpoint:         endpoint.GuildRole(guildID, roleID),
+		ContentType:      httd.ContentTypeJSON,
 	}, nil)
 
 	builder.r.cacheMiddleware = func(resp *http.Response, v interface{}, err error) error {
@@ -226,9 +232,11 @@ func (c *Client) UpdateGuildRole(guildID, roleID Snowflake, flags ...Flag) (buil
 //  Comment                 -
 func (c *Client) DeleteGuildRole(guildID, roleID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitGuildRoles(guildID),
-		Endpoint:    endpoint.GuildRole(guildID, roleID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "roles",
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.GuildRole(guildID, roleID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -245,8 +253,10 @@ func (c *Client) DeleteGuildRole(guildID, roleID Snowflake, flags ...Flag) (err 
 //  Comment                 -
 func (c *Client) GetGuildRoles(guildID Snowflake, flags ...Flag) (ret []*Role, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildRoles(guildID),
-		Endpoint:    "/guilds/" + guildID.String() + "/roles",
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "roles",
+		Endpoint:         "/guilds/" + guildID.String() + "/roles",
 	}, flags)
 	r.CacheRegistry = GuildRolesCache
 	r.factory = func() interface{} {

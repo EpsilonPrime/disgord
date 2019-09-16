@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/andersfylling/disgord/httd/ratelimit"
+
 	"github.com/andersfylling/disgord/endpoint"
 	"github.com/andersfylling/disgord/httd"
 
@@ -347,8 +349,9 @@ func (c *Client) GetChannel(channelID Snowflake, flags ...Flag) (ret *Channel, e
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitChannel(channelID),
-		Endpoint:    endpoint.Channel(channelID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		Endpoint:         endpoint.Channel(channelID),
 	}, flags)
 	r.CacheRegistry = ChannelCache
 	r.ID = channelID
@@ -377,10 +380,11 @@ func (c *Client) UpdateChannel(channelID Snowflake, flags ...Flag) (builder *upd
 	}
 	builder.r.flags = flags
 	builder.r.setup(c.cache, c.req, &httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitChannel(channelID),
-		Endpoint:    endpoint.Channel(channelID),
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		Method:           http.MethodPatch,
+		Endpoint:         endpoint.Channel(channelID),
+		ContentType:      httd.ContentTypeJSON,
 	}, nil)
 	builder.r.cacheRegistry = ChannelCache
 	builder.r.cacheItemID = channelID
@@ -408,9 +412,10 @@ func (c *Client) DeleteChannel(channelID Snowflake, flags ...Flag) (channel *Cha
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitChannel(channelID),
-		Endpoint:    endpoint.Channel(channelID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.Channel(channelID),
 	}, flags)
 	r.expectsStatusCode = http.StatusOK
 	r.updateCache = func(registry cacheRegistry, id Snowflake, x interface{}) (err error) {
@@ -449,11 +454,13 @@ func (c *Client) UpdateChannelPermissions(channelID, overwriteID Snowflake, para
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPut,
-		Ratelimiter: ratelimitChannelPermissions(channelID),
-		Endpoint:    endpoint.ChannelPermission(channelID, overwriteID),
-		ContentType: httd.ContentTypeJSON,
-		Body:        params,
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "perm",
+		Method:           http.MethodPut,
+		Endpoint:         endpoint.ChannelPermission(channelID, overwriteID),
+		ContentType:      httd.ContentTypeJSON,
+		Body:             params,
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 	r.updateCache = func(registry cacheRegistry, id Snowflake, x interface{}) (err error) {
@@ -480,8 +487,10 @@ func (c *Client) GetChannelInvites(channelID Snowflake, flags ...Flag) (invites 
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitChannelInvites(channelID),
-		Endpoint:    endpoint.ChannelInvites(channelID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "inv",
+		Endpoint:         endpoint.ChannelInvites(channelID),
 	}, flags)
 	r.CacheRegistry = ChannelCache
 	r.factory = func() interface{} {
@@ -519,11 +528,13 @@ func (c *Client) CreateChannelInvites(channelID Snowflake, params *CreateChannel
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitChannelInvites(channelID),
-		Endpoint:    endpoint.ChannelInvites(channelID),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "inv",
+		Method:           http.MethodPost,
+		Endpoint:         endpoint.ChannelInvites(channelID),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.factory = func() interface{} {
 		return &Invite{}
@@ -550,9 +561,11 @@ func (c *Client) DeleteChannelPermission(channelID, overwriteID Snowflake, flags
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitChannelPermissions(channelID),
-		Endpoint:    endpoint.ChannelPermission(channelID, overwriteID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "perm",
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.ChannelPermission(channelID, overwriteID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 	r.updateCache = func(registry cacheRegistry, id Snowflake, x interface{}) (err error) {
@@ -605,11 +618,13 @@ func (c *Client) AddDMParticipant(channelID Snowflake, participant *GroupDMParti
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPut,
-		Ratelimiter: ratelimitChannelRecipients(channelID),
-		Endpoint:    endpoint.ChannelRecipient(channelID, participant.UserID),
-		Body:        participant,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "recipient",
+		Method:           http.MethodPut,
+		Endpoint:         endpoint.ChannelRecipient(channelID, participant.UserID),
+		Body:             participant,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -633,9 +648,11 @@ func (c *Client) KickParticipant(channelID, userID Snowflake, flags ...Flag) (er
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitChannelRecipients(channelID),
-		Endpoint:    endpoint.ChannelRecipient(channelID, userID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "recipient",
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.ChannelRecipient(channelID, userID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 

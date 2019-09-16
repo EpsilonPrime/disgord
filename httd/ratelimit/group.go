@@ -38,6 +38,7 @@ func (r *bucketGroup) add(majorID Snowflake, b *bucket) {
 
 func (r *bucketGroup) bucket(majorID Snowflake, localBucketKey LocalKey) (b *bucket, ok bool) {
 	r.RLock()
+	defer r.RUnlock()
 	if buckets, exists := r.buckets[majorID]; exists {
 		for i := range buckets {
 			if buckets[i].LinkedTo(localBucketKey) {
@@ -46,10 +47,8 @@ func (r *bucketGroup) bucket(majorID Snowflake, localBucketKey LocalKey) (b *buc
 				break
 			}
 		}
-		r.RUnlock()
 		return b, ok
 	}
-	r.RUnlock()
 	return nil, false
 }
 

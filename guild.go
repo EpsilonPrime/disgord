@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/andersfylling/disgord/httd/ratelimit"
+
 	"github.com/andersfylling/disgord/endpoint"
 	"github.com/andersfylling/disgord/httd"
 
@@ -1231,11 +1233,11 @@ func (c *Client) CreateGuild(guildName string, params *CreateGuildParams, flags 
 	params.Name = guildName
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: endpoint.Guilds(),
-		Endpoint:    endpoint.Guilds(),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup: ratelimit.GroupGuilds,
+		Method:         http.MethodPost,
+		Endpoint:       endpoint.Guilds(),
+		Body:           params,
+		ContentType:    httd.ContentTypeJSON,
 	}, flags)
 	r.factory = func() interface{} {
 		return &Guild{}
@@ -1254,8 +1256,9 @@ func (c *Client) CreateGuild(guildName string, params *CreateGuildParams, flags 
 //  Comment                 -
 func (c *Client) GetGuild(id Snowflake, flags ...Flag) (guild *Guild, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuild(id),
-		Endpoint:    endpoint.Guild(id),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		Endpoint:         endpoint.Guild(id),
 	}, flags)
 	r.factory = func() interface{} {
 		return &Guild{}
@@ -1280,10 +1283,11 @@ func (c *Client) UpdateGuild(id Snowflake, flags ...Flag) (builder *updateGuildB
 		return &Guild{}
 	}
 	builder.r.setup(c.cache, c.req, &httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitGuild(id),
-		Endpoint:    endpoint.Guild(id),
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		Method:           http.MethodPatch,
+		Endpoint:         endpoint.Guild(id),
+		ContentType:      httd.ContentTypeJSON,
 	}, nil)
 	builder.r.cacheRegistry = GuildCache
 	builder.r.cacheItemID = id
@@ -1302,9 +1306,10 @@ func (c *Client) UpdateGuild(id Snowflake, flags ...Flag) (builder *updateGuildB
 //  Comment                 -
 func (c *Client) DeleteGuild(id Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitGuild(id),
-		Endpoint:    endpoint.Guild(id),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.Guild(id),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -1321,8 +1326,10 @@ func (c *Client) DeleteGuild(id Snowflake, flags ...Flag) (err error) {
 //  Comment                 -
 func (c *Client) GetGuildChannels(guildID Snowflake, flags ...Flag) (ret []*Channel, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildChannels(guildID),
-		Endpoint:    endpoint.GuildChannels(guildID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "channels",
+		Endpoint:         endpoint.GuildChannels(guildID),
 	}, flags)
 	r.CacheRegistry = ChannelCache
 	r.factory = func() interface{} {
@@ -1372,11 +1379,13 @@ func (c *Client) CreateGuildChannel(guildID Snowflake, channelName string, param
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitGuild(guildID),
-		Endpoint:    endpoint.GuildChannels(guildID),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "channels",
+		Method:           http.MethodPost,
+		Endpoint:         endpoint.GuildChannels(guildID),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.factory = func() interface{} {
 		return &Channel{}
@@ -1406,11 +1415,13 @@ type UpdateGuildChannelPositionsParams struct {
 //                          between at least two channels.
 func (c *Client) UpdateGuildChannelPositions(guildID Snowflake, params []UpdateGuildChannelPositionsParams, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitGuildChannels(guildID),
-		Endpoint:    endpoint.GuildChannels(guildID),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "channels",
+		Method:           http.MethodPatch,
+		Endpoint:         endpoint.GuildChannels(guildID),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 	// TODO: update ordering of guild channels in cache
@@ -1449,11 +1460,13 @@ type UpdateGuildRolePositionsParams struct {
 //  Comment                 -
 func (c *Client) UpdateGuildRolePositions(guildID Snowflake, params []UpdateGuildRolePositionsParams, flags ...Flag) (roles []*Role, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitGuildRoles(guildID),
-		Endpoint:    endpoint.GuildRoles(guildID),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "roles",
+		Method:           http.MethodPatch,
+		Endpoint:         endpoint.GuildRoles(guildID),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.factory = func() interface{} {
 		tmp := make([]*Role, 0)
@@ -1516,8 +1529,10 @@ func (c *Client) UpdateGuildRolePositions(guildID Snowflake, params []UpdateGuil
 //  Comment                 -
 func (c *Client) GetMember(guildID, userID Snowflake, flags ...Flag) (ret *Member, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildMembers(guildID),
-		Endpoint:    endpoint.GuildMember(guildID, userID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "members",
+		Endpoint:         endpoint.GuildMember(guildID, userID),
 	}, flags)
 	r.CacheRegistry = GuildMembersCache
 	r.ID = userID
@@ -1561,8 +1576,10 @@ func (c *Client) getGuildMembers(guildID Snowflake, params *getGuildMembersParam
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildMembers(guildID),
-		Endpoint:    endpoint.GuildMembers(guildID) + params.URLQueryString(),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "members",
+		Endpoint:         endpoint.GuildMembers(guildID) + params.URLQueryString(),
 	}, flags)
 	r.CacheRegistry = GuildMembersCache
 	r.checkCache = func() (v interface{}, err error) {
@@ -1677,11 +1694,13 @@ func (c *Client) AddGuildMember(guildID, userID Snowflake, accessToken string, p
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPut,
-		Ratelimiter: ratelimitGuildMembers(guildID),
-		Endpoint:    endpoint.GuildMember(guildID, userID),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "members",
+		Method:           http.MethodPut,
+		Endpoint:         endpoint.GuildMember(guildID, userID),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.factory = func() interface{} {
 		return &Member{}
@@ -1715,10 +1734,12 @@ func (c *Client) UpdateGuildMember(guildID, userID Snowflake, flags ...Flag) (bu
 	}
 	builder.r.flags = flags
 	builder.r.setup(c.cache, c.req, &httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitGuildMembers(guildID),
-		Endpoint:    endpoint.GuildMember(guildID, userID),
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "members",
+		Method:           http.MethodPatch,
+		Endpoint:         endpoint.GuildMember(guildID, userID),
+		ContentType:      httd.ContentTypeJSON,
 	}, func(resp *http.Response, body []byte, err error) error {
 		if resp.StatusCode != http.StatusNoContent {
 			msg := "could not change attributes of member. Does the member exist, and do you have permissions?"
@@ -1741,9 +1762,11 @@ func (c *Client) UpdateGuildMember(guildID, userID Snowflake, flags ...Flag) (bu
 //  Comment                 -
 func (c *Client) AddGuildMemberRole(guildID, userID, roleID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPut,
-		Ratelimiter: ratelimitGuildMembers(guildID),
-		Endpoint:    endpoint.GuildMemberRole(guildID, userID, roleID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "m-r",
+		Method:           http.MethodPut,
+		Endpoint:         endpoint.GuildMemberRole(guildID, userID, roleID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -1761,9 +1784,11 @@ func (c *Client) AddGuildMemberRole(guildID, userID, roleID Snowflake, flags ...
 //  Comment                 -
 func (c *Client) RemoveGuildMemberRole(guildID, userID, roleID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitGuildMembers(guildID),
-		Endpoint:    endpoint.GuildMemberRole(guildID, userID, roleID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "members",
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.GuildMemberRole(guildID, userID, roleID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -1781,9 +1806,11 @@ func (c *Client) RemoveGuildMemberRole(guildID, userID, roleID Snowflake, flags 
 //  Comment                 -
 func (c *Client) KickMember(guildID, userID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitGuildMembers(guildID),
-		Endpoint:    endpoint.GuildMember(guildID, userID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "members",
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.GuildMember(guildID, userID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -1800,8 +1827,10 @@ func (c *Client) KickMember(guildID, userID Snowflake, flags ...Flag) (err error
 //  Comment                 -
 func (c *Client) GetGuildBans(id Snowflake, flags ...Flag) (bans []*Ban, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildBans(id),
-		Endpoint:    endpoint.GuildBans(id),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		BucketKey:        "bans",
+		Endpoint:         endpoint.GuildBans(id),
 	}, flags)
 	r.factory = func() interface{} {
 		tmp := make([]*Ban, 0)
@@ -1829,8 +1858,10 @@ func (c *Client) GetGuildBans(id Snowflake, flags ...Flag) (bans []*Ban, err err
 //  Comment                 -
 func (c *Client) GetGuildBan(guildID, userID Snowflake, flags ...Flag) (ret *Ban, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildBans(guildID),
-		Endpoint:    endpoint.GuildBan(guildID, userID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "bans",
+		Endpoint:         endpoint.GuildBan(guildID, userID),
 	}, flags)
 	r.factory = func() interface{} {
 		return &Ban{User: c.pool.user.Get().(*User)}
@@ -1872,9 +1903,11 @@ func (c *Client) BanMember(guildID, userID Snowflake, params *BanMemberParams, f
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPut,
-		Ratelimiter: ratelimitGuildBans(guildID),
-		Endpoint:    endpoint.GuildBan(guildID, userID) + params.URLQueryString(),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "bans",
+		Method:           http.MethodPut,
+		Endpoint:         endpoint.GuildBan(guildID, userID) + params.URLQueryString(),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -1892,9 +1925,11 @@ func (c *Client) BanMember(guildID, userID Snowflake, params *BanMemberParams, f
 //  Comment                 -
 func (c *Client) UnbanMember(guildID, userID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitGuildBans(guildID),
-		Endpoint:    endpoint.GuildBan(guildID, userID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "bans",
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.GuildBan(guildID, userID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -1944,8 +1979,10 @@ func (c *Client) EstimatePruneMembersCount(id Snowflake, days int, flags ...Flag
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildPrune(id),
-		Endpoint:    endpoint.GuildPrune(id) + params.URLQueryString(),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		BucketKey:        "prune",
+		Endpoint:         endpoint.GuildPrune(id) + params.URLQueryString(),
 	}, flags)
 	r.factory = func() interface{} {
 		return &guildPruneCount{}
@@ -1980,9 +2017,11 @@ func (c *Client) PruneMembers(id Snowflake, days int, flags ...Flag) (err error)
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitGuildPrune(id),
-		Endpoint:    endpoint.GuildPrune(id) + params.URLQueryString(),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		BucketKey:        "prune",
+		Method:           http.MethodPost,
+		Endpoint:         endpoint.GuildPrune(id) + params.URLQueryString(),
 	}, flags)
 
 	_, err = r.Execute()
@@ -1999,8 +2038,10 @@ func (c *Client) PruneMembers(id Snowflake, days int, flags ...Flag) (err error)
 //  Comment                 -
 func (c *Client) GetGuildVoiceRegions(id Snowflake, flags ...Flag) (ret []*VoiceRegion, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildRegions(id),
-		Endpoint:    endpoint.GuildRegions(id),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		BucketKey:        "regions",
+		Endpoint:         endpoint.GuildRegions(id),
 	}, flags)
 	r.factory = func() interface{} {
 		tmp := make([]*VoiceRegion, 0)
@@ -2020,8 +2061,10 @@ func (c *Client) GetGuildVoiceRegions(id Snowflake, flags ...Flag) (ret []*Voice
 //  Comment                 -
 func (c *Client) GetGuildInvites(id Snowflake, flags ...Flag) (ret []*Invite, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildInvites(id),
-		Endpoint:    endpoint.GuildInvites(id),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		BucketKey:        "inv",
+		Endpoint:         endpoint.GuildInvites(id),
 	}, flags)
 	r.factory = func() interface{} {
 		tmp := make([]*Invite, 0)
@@ -2041,8 +2084,10 @@ func (c *Client) GetGuildInvites(id Snowflake, flags ...Flag) (ret []*Invite, er
 //  Comment                  -
 func (c *Client) GetGuildIntegrations(id Snowflake, flags ...Flag) (ret []*Integration, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildIntegrations(id),
-		Endpoint:    endpoint.GuildIntegrations(id),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		BucketKey:        "integra",
+		Endpoint:         endpoint.GuildIntegrations(id),
 	}, flags)
 	r.factory = func() interface{} {
 		tmp := make([]*Integration, 0)
@@ -2070,11 +2115,13 @@ type CreateGuildIntegrationParams struct {
 //  Comment                 -
 func (c *Client) CreateGuildIntegration(guildID Snowflake, params *CreateGuildIntegrationParams, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitGuildIntegrations(guildID),
-		Endpoint:    endpoint.GuildIntegrations(guildID),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "integra",
+		Method:           http.MethodPost,
+		Endpoint:         endpoint.GuildIntegrations(guildID),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -2102,11 +2149,13 @@ type UpdateGuildIntegrationParams struct {
 //  Comment                 -
 func (c *Client) UpdateGuildIntegration(guildID, integrationID Snowflake, params *UpdateGuildIntegrationParams, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitGuildIntegrations(guildID),
-		Endpoint:    endpoint.GuildIntegration(guildID, integrationID),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "integra",
+		Method:           http.MethodPatch,
+		Endpoint:         endpoint.GuildIntegration(guildID, integrationID),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -2125,9 +2174,11 @@ func (c *Client) UpdateGuildIntegration(guildID, integrationID Snowflake, params
 //  Comment                 -
 func (c *Client) DeleteGuildIntegration(guildID, integrationID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitGuildIntegrations(guildID),
-		Endpoint:    endpoint.GuildIntegration(guildID, integrationID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "integra",
+		Method:           http.MethodDelete,
+		Endpoint:         endpoint.GuildIntegration(guildID, integrationID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -2145,9 +2196,11 @@ func (c *Client) DeleteGuildIntegration(guildID, integrationID Snowflake, flags 
 //  Comment                 -
 func (c *Client) SyncGuildIntegration(guildID, integrationID Snowflake, flags ...Flag) (err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitGuildIntegrations(guildID),
-		Endpoint:    endpoint.GuildIntegrationSync(guildID, integrationID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "integra",
+		Method:           http.MethodPost,
+		Endpoint:         endpoint.GuildIntegrationSync(guildID, integrationID),
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -2179,11 +2232,13 @@ func (c *Client) SetCurrentUserNick(id Snowflake, nick string, flags ...Flag) (n
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitGuildMembers(id),
-		Endpoint:    endpoint.GuildMembersMeNick(id),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: id,
+		BucketKey:        "m-me-nick",
+		Method:           http.MethodPatch,
+		Endpoint:         endpoint.GuildMembersMeNick(id),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.expectsStatusCode = http.StatusOK
 	r.factory = func() interface{} {
@@ -2202,8 +2257,10 @@ func (c *Client) SetCurrentUserNick(id Snowflake, nick string, flags ...Flag) (n
 //  Comment                 -
 func (c *Client) GetGuildEmbed(guildID Snowflake, flags ...Flag) (embed *GuildEmbed, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildEmbed(guildID),
-		Endpoint:    endpoint.GuildEmbed(guildID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "embed",
+		Endpoint:         endpoint.GuildEmbed(guildID),
 	}, flags)
 	r.factory = func() interface{} {
 		return &GuildEmbed{}
@@ -2227,10 +2284,12 @@ func (c *Client) UpdateGuildEmbed(guildID Snowflake, flags ...Flag) (builder *up
 	}
 	builder.r.flags = flags
 	builder.r.setup(c.cache, c.req, &httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitGuildEmbed(guildID),
-		Endpoint:    endpoint.GuildEmbed(guildID),
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "embed",
+		Method:           http.MethodPatch,
+		Endpoint:         endpoint.GuildEmbed(guildID),
+		ContentType:      httd.ContentTypeJSON,
 	}, nil)
 
 	return builder
@@ -2246,8 +2305,10 @@ func (c *Client) UpdateGuildEmbed(guildID Snowflake, flags ...Flag) (builder *up
 //  Comment                 -
 func (c *Client) GetGuildVanityURL(guildID Snowflake, flags ...Flag) (ret *PartialInvite, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildVanityURL(guildID),
-		Endpoint:    endpoint.GuildVanityURL(guildID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "v-u",
+		Endpoint:         endpoint.GuildVanityURL(guildID),
 	}, flags)
 	r.factory = func() interface{} {
 		return &PartialInvite{}

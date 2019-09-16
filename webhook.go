@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/andersfylling/disgord/httd/ratelimit"
+
 	"github.com/andersfylling/disgord/constant"
 	"github.com/andersfylling/disgord/endpoint"
 	"github.com/andersfylling/disgord/httd"
@@ -104,11 +106,13 @@ func (c *Client) CreateWebhook(channelID Snowflake, params *CreateWebhookParams,
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitChannelWebhooks(channelID),
-		Endpoint:    endpoint.ChannelWebhooks(channelID),
-		Body:        params,
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "webhooks",
+		Method:           http.MethodPost,
+		Endpoint:         endpoint.ChannelWebhooks(channelID),
+		Body:             params,
+		ContentType:      httd.ContentTypeJSON,
 	}, flags)
 	r.factory = func() interface{} {
 		return &Webhook{}
@@ -126,8 +130,10 @@ func (c *Client) CreateWebhook(channelID Snowflake, params *CreateWebhookParams,
 //  Comment                 -
 func (c *Client) GetChannelWebhooks(channelID Snowflake, flags ...Flag) (ret []*Webhook, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitChannelWebhooks(channelID),
-		Endpoint:    endpoint.ChannelWebhooks(channelID),
+		RateLimitGroup:   ratelimit.GroupChannels,
+		RateLimitMajorID: channelID,
+		BucketKey:        "webhooks",
+		Endpoint:         endpoint.ChannelWebhooks(channelID),
 	}, flags)
 	r.factory = func() interface{} {
 		tmp := make([]*Webhook, 0)
@@ -146,8 +152,10 @@ func (c *Client) GetChannelWebhooks(channelID Snowflake, flags ...Flag) (ret []*
 //  Comment                 -
 func (c *Client) GetGuildWebhooks(guildID Snowflake, flags ...Flag) (ret []*Webhook, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitGuildWebhooks(guildID),
-		Endpoint:    endpoint.GuildWebhooks(guildID),
+		RateLimitGroup:   ratelimit.GroupGuilds,
+		RateLimitMajorID: guildID,
+		BucketKey:        "webhooks",
+		Endpoint:         endpoint.GuildWebhooks(guildID),
 	}, flags)
 	r.factory = func() interface{} {
 		tmp := make([]*Webhook, 0)
@@ -166,8 +174,9 @@ func (c *Client) GetGuildWebhooks(guildID Snowflake, flags ...Flag) (ret []*Webh
 //  Comment                 -
 func (c *Client) GetWebhook(id Snowflake, flags ...Flag) (ret *Webhook, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitWebhook(id),
-		Endpoint:    endpoint.Webhook(id),
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      ratelimit.LocalKey(id.String()),
+		Endpoint:       endpoint.Webhook(id),
 	}, flags)
 	r.factory = func() interface{} {
 		return &Webhook{}
@@ -186,8 +195,9 @@ func (c *Client) GetWebhook(id Snowflake, flags ...Flag) (ret *Webhook, err erro
 //  Comment                 -
 func (c *Client) GetWebhookWithToken(id Snowflake, token string, flags ...Flag) (ret *Webhook, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimitWebhook(id),
-		Endpoint:    endpoint.WebhookToken(id, token),
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      ratelimit.LocalKey(id.String()),
+		Endpoint:       endpoint.WebhookToken(id, token),
 	}, flags)
 	r.factory = func() interface{} {
 		return &Webhook{}
@@ -212,10 +222,11 @@ func (c *Client) UpdateWebhook(id Snowflake, flags ...Flag) (builder *updateWebh
 	builder.r.flags = flags
 	builder.r.addPrereq(id.IsZero(), "given webhook ID was not set, there is nothing to modify")
 	builder.r.setup(c.cache, c.req, &httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitWebhook(id),
-		Endpoint:    endpoint.Webhook(id),
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      ratelimit.LocalKey(id.String()),
+		Method:         http.MethodPatch,
+		Endpoint:       endpoint.Webhook(id),
+		ContentType:    httd.ContentTypeJSON,
 	}, nil)
 
 	return builder
@@ -238,10 +249,11 @@ func (c *Client) UpdateWebhookWithToken(id Snowflake, token string, flags ...Fla
 	builder.r.addPrereq(id.IsZero(), "given webhook ID was not set, there is nothing to modify")
 	builder.r.addPrereq(token == "", "given webhook token was not set")
 	builder.r.setup(c.cache, c.req, &httd.Request{
-		Method:      http.MethodPatch,
-		Ratelimiter: ratelimitWebhook(id),
-		Endpoint:    endpoint.WebhookToken(id, token),
-		ContentType: httd.ContentTypeJSON,
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      ratelimit.LocalKey(id.String()),
+		Method:         http.MethodPatch,
+		Endpoint:       endpoint.WebhookToken(id, token),
+		ContentType:    httd.ContentTypeJSON,
 	}, nil)
 
 	return builder
@@ -274,9 +286,10 @@ func (c *Client) DeleteWebhookWithToken(id Snowflake, token string, flags ...Fla
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimitWebhook(id),
-		Endpoint:    e,
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      ratelimit.LocalKey(id.String()),
+		Method:         http.MethodDelete,
+		Endpoint:       e,
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent
 
@@ -346,11 +359,12 @@ func (c *Client) ExecuteWebhook(params *ExecuteWebhookParams, wait bool, URLSuff
 
 	urlparams := &execWebhookParams{wait}
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodPost,
-		Ratelimiter: ratelimitWebhook(params.WebhookID),
-		Endpoint:    endpoint.WebhookToken(params.WebhookID, params.Token) + URLSuffix + urlparams.URLQueryString(),
-		Body:        params,
-		ContentType: contentType,
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      ratelimit.LocalKey(params.WebhookID.String()),
+		Method:         http.MethodPost,
+		Endpoint:       endpoint.WebhookToken(params.WebhookID, params.Token) + URLSuffix + urlparams.URLQueryString(),
+		Body:           params,
+		ContentType:    contentType,
 	}, flags)
 	r.expectsStatusCode = http.StatusNoContent // TODO: verify
 

@@ -6,7 +6,7 @@ import (
 	"github.com/andersfylling/disgord/constant"
 	"github.com/andersfylling/disgord/endpoint"
 	"github.com/andersfylling/disgord/httd"
-	"github.com/andersfylling/disgord/ratelimit"
+	"github.com/andersfylling/disgord/httd/ratelimit"
 )
 
 // PartialInvite ...
@@ -193,8 +193,9 @@ func (c *Client) GetInvite(inviteCode string, params URLQueryStringer, flags ...
 	}
 
 	r := c.newRESTRequest(&httd.Request{
-		Ratelimiter: ratelimit.Invites(),
-		Endpoint:    endpoint.Invite(inviteCode) + params.URLQueryString(),
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      "invites",
+		Endpoint:       endpoint.Invite(inviteCode) + params.URLQueryString(),
 	}, flags)
 	r.factory = inviteFactory
 
@@ -210,9 +211,10 @@ func (c *Client) GetInvite(inviteCode string, params URLQueryStringer, flags ...
 //  Comment                 -
 func (c *Client) DeleteInvite(inviteCode string, flags ...Flag) (deleted *Invite, err error) {
 	r := c.newRESTRequest(&httd.Request{
-		Method:      http.MethodDelete,
-		Ratelimiter: ratelimit.Invites(),
-		Endpoint:    endpoint.Invite(inviteCode),
+		RateLimitGroup: ratelimit.GroupOthers,
+		BucketKey:      "invites",
+		Method:         http.MethodDelete,
+		Endpoint:       endpoint.Invite(inviteCode),
 	}, flags)
 	r.factory = inviteFactory
 
