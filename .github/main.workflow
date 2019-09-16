@@ -3,7 +3,7 @@ workflow "Code quality" {
   resolves = [
     "go imports",
     //"go lint",
-    "go vet",
+    //"go vet",
     "staticcheck",
     "errcheck",
     "go sec",
